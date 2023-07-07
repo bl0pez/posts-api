@@ -1,12 +1,20 @@
 const express = require('express');
-const mongoose = require('mongoose');
+const http = require('http');
 const cors = require('cors');
 const multer = require('multer');
+const connectDB = require('./config/connectDB');
+
+const socketio = require('socket.io');
+const sockets = require('./socket');
+
 require('dotenv').config();
 
 const { v4: uuidv4 } = require('uuid');
 
 const path = require('path');
+
+
+
 
 const app = express();
 
@@ -40,6 +48,9 @@ app.use(multer({storage: fileStorage, fileFilter: fileFilter}).single('image'));
 //Ruta statica para imagenes
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
+//Base de datos
+connectDB();
+
 //Rutas
 app.use('/feed', require('./routes/feed'));
 app.use('/auth', require('./routes/auth'));
@@ -57,13 +68,11 @@ app.use((error, req, res, next) => {
 
 });
 
-mongoose.connect(process.env.MONGO_URL)
-    .then(() => {
-        console.log('Conectado a la base de datos');
-        const server = app.listen(process.env.PORT);
-        const io = require('./socket')(server);
-        io.on('connection', socket => {
-            console.log('Cliente conectado');
-        });
-    })
-    .catch(err => console.log(err));
+const server = http.createServer(app);
+const socket = socketio(server);
+sockets(socket);
+
+server.listen(process.env.PORT, () => {
+    console.log('Server running: ');
+    console.log(`http://localhost:${process.env.PORT}`);
+});
